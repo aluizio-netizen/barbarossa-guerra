@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Gabinete de Guerra — Operação Barbarossa</title>
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Share+Tech+Mono&family=UnifrakturMaguntia&family=Playfair+Display:ital,wght@0,700;1,400&family=Oswald:wght@400;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#111009;--surface:#1c1710;--surface2:#251e14;
+  --border:#3d3020;--border2:#5a4830;
+  --gold:#c8a84a;--gold2:#e6c96a;
+  --red:#7a1515;--red2:#a02020;
+  --blue:#12304d;--blue2:#1a4a6e;
+  --text:#ede0c4;--muted:#8a7a60;--dim:#5a4e38;
+  --green:#1a3a18;--green2:#4a8a3a;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Share Tech Mono',monospace;overflow:hidden}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px);pointer-events:none;z-index:9999}
+.hdr{display:flex;align-items:center;gap:12px;padding:8px 14px;background:var(--surface);border-bottom:1px solid var(--gold);flex-shrink:0}
+.hdr-left{display:flex;flex-direction:column;gap:1px}
+.hdr-sub{font-size:9px;color:var(--muted);letter-spacing:3px;text-transform:uppercase}
+.hdr-title{font-family:'Special Elite',serif;font-size:13px;color:var(--gold);letter-spacing:1.5px;text-transform:uppercase}
+.badge{background:var(--red);border:1px solid var(--red2);color:#ffaaaa;font-size:9px;padding:2px 7px;letter-spacing:2px;animation:blink 2s step-end infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.6}}
+.hdr-date{margin-left:auto;font-size:10px;color:var(--muted);letter-spacing:1px}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--green2);box-shadow:0 0 6px var(--green2);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.app{display:flex;height:calc(100vh - 41px);overflow:hidden}
+.sidebar{width:185px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.center{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.intel{width:220px;flex-shrink:0;border-left:1px solid var(--border);overflow-y:auto}
+.ptitle{font-size:9px;color:var(--gold);letter-spacing:3px;padding:7px 11px;border-bottom:1px solid var(--border);text-transform:uppercase;background:var(--surface);position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:6px}
+.ptitle::before{content:'//';color:var(--dim)}
+.tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.tab{flex:1;background:transparent;border:none;color:var(--muted);font-family:inherit;font-size:10px;padding:8px 4px;cursor:pointer;letter-spacing:1px;border-bottom:2px solid transparent;transition:all 0.15s;text-transform:uppercase}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+.tabpanel{display:none;flex:1;flex-direction:column;overflow:hidden}
+.tabpanel.active{display:flex}
+.dlist{overflow-y:auto;flex:1;padding:6px}
+.dbtn{width:100%;text-align:left;background:transparent;border:1px solid var(--border);border-radius:2px;padding:7px 9px;cursor:pointer;color:var(--text);font-family:inherit;transition:all 0.15s;margin-bottom:4px;position:relative;overflow:hidden}
+.dbtn::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);transform:scaleY(0);transition:transform 0.15s;transform-origin:bottom}
+.dbtn:hover{border-color:var(--border2);background:var(--surface2)}
+.dbtn:hover::before{transform:scaleY(1)}
+.dbtn.active{border-color:var(--gold);background:var(--surface2)}
+.dbtn.active::before{transform:scaleY(1)}
+.dbtn.soviet{border-color:#2a3a2a}.dbtn.soviet.active{border-color:#4a8a3a}.dbtn.soviet::before{background:var(--green2)}
+.dflag{font-size:14px;margin-bottom:2px}
+.dname{font-size:11px;font-weight:600;color:var(--text)}
+.drole{font-size:9px;color:var(--muted);margin-top:1px;letter-spacing:0.5px}
+.chatlog{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
+.msg{max-width:88%}
+.msg.system{max-width:100%;background:rgba(200,168,74,0.05);border-left:2px solid var(--gold);padding:8px 11px;font-size:11px;color:var(--muted);line-height:1.6}
+.msg.user{align-self:flex-end;background:var(--blue2);border:1px solid #2a5a7a;border-radius:2px;padding:8px 11px}
+.msg.ai{align-self:flex-start;background:var(--surface2);border:1px solid var(--border);border-radius:2px;padding:8px 11px}
+.msg.ai.soviet-msg{border-color:#2a4a2a;background:#111a11}
+.msg.directive{max-width:100%;background:#0a140a;border:1px solid var(--gold);border-left:3px solid var(--gold2);padding:12px 14px}
+.msg.analysis{max-width:100%;background:#0d0d1a;border:1px solid #3a3a6a;border-left:3px solid #6a6aaa;padding:12px 14px}
+.msg.reply-dir{max-width:100%;background:#1a0a0a;border:1px solid #6a3a3a;border-left:3px solid #aa6a6a;padding:12px 14px}
+.mhdr{font-size:9px;color:var(--gold);margin-bottom:4px;letter-spacing:2px}
+.mhdr.soviet-hdr{color:var(--green2)}
+.mtext{font-size:11px;line-height:1.7;color:var(--text)}
+.typing{font-size:10px;color:var(--muted);padding:3px 12px;display:none;letter-spacing:1px}
+.typing.on{display:block}
+.inputrow{border-top:1px solid var(--border);padding:9px;display:flex;gap:7px;background:var(--surface);flex-shrink:0}
+.inputrow select{background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:10px;padding:5px 6px;font-family:inherit;cursor:pointer;outline:none}
+.msginput{flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:11px;padding:6px 10px;font-family:inherit;outline:none;min-width:0}
+.msginput:focus{border-color:var(--gold)}
+.msginput::placeholder{color:var(--dim)}
+.sendbtn{background:var(--gold);color:#0a0800;border:none;padding:6px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:1px;transition:background 0.15s}
+.sendbtn:hover{background:var(--gold2)}
+.sendbtn:disabled{opacity:0.35;cursor:not-allowed}
+.prob-block{margin:10px 0 4px}
+.prob-label{font-size:9px;color:var(--muted);letter-spacing:2px;margin-bottom:5px;text-transform:uppercase}
+.prob-bar-wrap{background:#1a1a1a;border:1px solid var(--border);height:14px;position:relative;overflow:hidden}
+.prob-bar{height:100%;transition:width 1s ease;position:relative}
+.prob-bar::after{content:attr(data-pct);position:absolute;right:6px;top:0;line-height:14px;font-size:9px;color:#fff;font-weight:700}
+.prob-factors{margin-top:8px;display:flex;flex-direction:column;gap:3px}
+.pfactor{font-size:10px;display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid rgba(61,48,32,0.3)}
+.pfactor:last-child{border-bottom:none}
+.pf-val.pos{color:#5ab050}.pf-val.neg{color:#e05050}.pf-val.neu{color:var(--gold)}
+.reply-selector{background:var(--surface);border:1px solid var(--border);padding:10px;margin-top:6px}
+.reply-selector p{font-size:10px;color:var(--muted);margin-bottom:8px;letter-spacing:1px}
+.reply-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.reply-btn{background:transparent;border:1px solid var(--border);color:var(--text);font-family:inherit;font-size:10px;padding:6px 8px;cursor:pointer;text-align:left;transition:all 0.15s}
+.reply-btn:hover{border-color:var(--gold);background:var(--surface2);color:var(--gold)}
+.pdf-btn{display:inline-flex;align-items:center;gap:5px;background:transparent;border:1px solid var(--gold);color:var(--gold);font-family:inherit;font-size:10px;padding:5px 12px;cursor:pointer;margin-top:10px;transition:all 0.15s;letter-spacing:1px}
+.pdf-btn:hover{background:var(--gold);color:#0a0800}
+.dirform{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.dfield{display:flex;flex-direction:column;gap:4px}
+.dfield label{font-size:9px;color:var(--gold);letter-spacing:2px;text-transform:uppercase}
+.dfield select,.dfield input,.dfield textarea{background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:11px;padding:7px 9px;outline:none;width:100%;resize:vertical}
+.dfield select:focus,.dfield input:focus,.dfield textarea:focus{border-color:var(--gold)}
+.dfield textarea{min-height:80px;line-height:1.6}
+.dirbtn{width:100%;background:var(--gold);color:#0a0800;border:none;padding:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:2px;text-transform:uppercase;transition:background 0.15s;margin-top:4px}
+.dirbtn:hover{background:var(--gold2)}
+.dirbtn:disabled{opacity:0.35;cursor:not-allowed}
+.dirbtn.secondary{background:transparent;border:1px solid var(--border);color:var(--muted);margin-top:0}
+.dirbtn.secondary:hover{border-color:var(--gold);color:var(--text);background:var(--surface2)}
+.maptab{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.map-canvas-wrap{flex:1;position:relative;overflow:hidden;background:#0d1a0d}
+.map-controls{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.map-btn{background:transparent;border:1px solid var(--border);color:var(--muted);font-family:inherit;font-size:10px;padding:5px 10px;cursor:pointer;transition:all 0.15s;letter-spacing:1px}
+.map-btn:hover,.map-btn.active{border-color:var(--gold);color:var(--gold);background:var(--surface2)}
+.map-legend{display:flex;gap:12px;margin-left:auto;font-size:9px;color:var(--muted);align-items:center}
+.leg-item{display:flex;align-items:center;gap:4px}
+.leg-dot{width:8px;height:8px;border-radius:50%}
+.intel-inner{padding:8px;display:flex;flex-direction:column;gap:8px}
+.icard{background:var(--surface);border:1px solid var(--border);padding:9px}
+.icard h3{font-size:9px;color:var(--gold);letter-spacing:2px;text-transform:uppercase;margin-bottom:7px;display:flex;align-items:center;gap:5px}
+.icard h3::after{content:'';flex:1;height:1px;background:var(--border)}
+.irow{display:flex;justify-content:space-between;align-items:center;font-size:10px;padding:3px 0;border-bottom:1px solid rgba(61,48,32,0.5)}
+.irow:last-child{border-bottom:none}
+.ival{color:var(--muted)}.ival.g{color:#5ab050}.ival.r{color:#e05050}.ival.a{color:var(--gold)}
+.actbtn{width:100%;background:transparent;border:1px solid var(--border);color:var(--muted);font-size:10px;padding:6px 9px;text-align:left;cursor:pointer;font-family:inherit;transition:all 0.15s;margin-bottom:4px}
+.actbtn:hover{border-color:var(--gold);color:var(--text);background:var(--surface2)}
+.faction-divider{font-size:9px;color:var(--dim);letter-spacing:2px;padding:6px 9px 3px;text-transform:uppercase}
+.dayrow{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:4px}
+.daybtn{background:var(--surface2);border:1px solid var(--border2);color:var(--gold);font-family:inherit;font-size:11px;padding:4px 10px;cursor:pointer;transition:all 0.15s;font-weight:700}
+.daybtn:hover{background:var(--gold);color:#0a0800}
+.daybtn:disabled{opacity:0.3;cursor:not-allowed}
+.daylabel{font-size:11px;color:var(--gold);letter-spacing:1px;text-align:center;flex:1}
+.daydate{font-size:9px;color:var(--muted);text-align:center;margin-top:2px}
+.newspaper-panel{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+.news-controls{padding:12px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:10px;flex-shrink:0;background:var(--surface)}
+.news-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.news-row label{font-size:9px;color:var(--gold);letter-spacing:2px;text-transform:uppercase;white-space:nowrap}
+.news-row select,.news-row input{background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:11px;padding:5px 8px;outline:none;flex:1;min-width:120px}
+.news-row textarea{background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:11px;padding:5px 8px;outline:none;width:100%;resize:none;height:52px;line-height:1.5}
+.newsbtn{background:var(--gold);color:#0a0800;border:none;padding:7px 16px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:2px;text-transform:uppercase;transition:background 0.15s;white-space:nowrap}
+.newsbtn:hover{background:var(--gold2)}
+.newsbtn:disabled{opacity:0.35;cursor:not-allowed}
+.newsbtn.secondary{background:transparent;border:1px solid var(--border2);color:var(--gold);padding:7px 14px}
+.newsbtn.secondary:hover{background:var(--gold);color:#0a0800}
+.news-preview-wrap{flex:1;overflow-y:auto;padding:16px;display:flex;justify-content:center;align-items:flex-start;background:#2a2318}
+.newspaper-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--dim);font-size:11px;letter-spacing:2px;text-align:center;gap:8px}
+.newspaper-placeholder .icon{font-size:36px;opacity:0.3}
+#newspaperDE{width:720px;min-height:900px;background:#f5f0e0;color:#1a1208;font-family:'Playfair Display',Georgia,serif;padding:0;box-shadow:0 4px 32px rgba(0,0,0,0.7);position:relative;overflow:hidden;}
+#newspaperDE .np-noise{position:absolute;inset:0;pointer-events:none;z-index:1;opacity:0.4;mix-blend-mode:multiply;}
+#newspaperDE .np-header{background:#1a1208;padding:6px 20px 4px;text-align:center;position:relative;z-index:2;}
+#newspaperDE .np-header .np-motto{font-family:'Share Tech Mono',monospace;font-size:8px;color:#c8a84a;letter-spacing:4px;text-transform:uppercase;border-bottom:1px solid #3a2e14;padding-bottom:4px;margin-bottom:4px;}
+#newspaperDE .np-nameplate{font-family:'UnifrakturMaguntia',cursive;font-size:52px;color:#f5f0e0;line-height:1;margin:2px 0;text-shadow:2px 2px 0 #3a2e14;}
+#newspaperDE .np-subheader{display:flex;justify-content:space-between;align-items:center;font-family:'Share Tech Mono',monospace;font-size:8px;color:#c8a84a;letter-spacing:2px;padding-top:4px;border-top:1px solid #3a2e14;}
+#newspaperDE .np-body{padding:12px 20px 20px;position:relative;z-index:2;}
+#newspaperDE .np-banner{text-align:center;border-top:3px solid #1a1208;border-bottom:1px solid #1a1208;padding:10px 0 8px;margin-bottom:12px;}
+#newspaperDE .np-banner .np-kicker{font-family:'Oswald',sans-serif;font-size:10px;letter-spacing:5px;text-transform:uppercase;color:#8a1010;margin-bottom:4px;}
+#newspaperDE .np-banner .np-headline{font-family:'UnifrakturMaguntia',cursive;font-size:36px;line-height:1.1;color:#1a1208;margin-bottom:4px;}
+#newspaperDE .np-banner .np-deck{font-family:'Playfair Display',serif;font-style:italic;font-size:13px;color:#3a2e14;line-height:1.4;}
+#newspaperDE .np-col-rule{display:grid;gap:0;}
+#newspaperDE .np-col-rule.cols-3{grid-template-columns:1fr 1fr 1fr;}
+#newspaperDE .np-col{padding:10px 14px;border-right:1px solid #c8b890;font-size:11.5px;line-height:1.7;color:#1a1208;font-family:'Playfair Display',serif;text-align:justify;}
+#newspaperDE .np-col:last-child{border-right:none;}
+#newspaperDE .np-col-head{font-family:'Oswald',sans-serif;font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:1px;color:#8a1010;margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid #8a1010;}
+#newspaperDE .np-drop{float:left;font-family:'UnifrakturMaguntia',cursive;font-size:46px;line-height:0.85;margin:4px 6px 0 0;color:#8a1010;}
+#newspaperDE .np-divider{border:none;border-top:1px solid #c8b890;margin:10px 0;}
+#newspaperDE .np-caption{font-family:'Share Tech Mono',monospace;font-size:9px;color:#5a4e38;letter-spacing:1px;text-align:center;font-style:italic;margin:6px 0 10px;padding:4px;border-top:1px solid #c8b890;border-bottom:1px solid #c8b890;}
+#newspaperDE .np-sidebar{background:#e8e0c4;padding:10px 12px;border:1px solid #c8b890;margin-top:10px;}
+#newspaperDE .np-sidebar-title{font-family:'Oswald',sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#8a1010;margin-bottom:6px;border-bottom:1px solid #c8b890;padding-bottom:4px;}
+#newspaperDE .np-sidebar p{font-size:10.5px;line-height:1.6;color:#2a1e08;font-family:'Playfair Display',serif;}
+#newspaperDE .np-footer{background:#1a1208;padding:6px 20px;display:flex;justify-content:space-between;align-items:center;position:relative;z-index:2;}
+#newspaperDE .np-footer span{font-family:'Share Tech Mono',monospace;font-size:8px;color:#c8a84a;letter-spacing:2px;}
+#newspaperRU{width:720px;min-height:900px;background:#eeeae0;color:#100c08;font-family:'Playfair Display',Georgia,serif;box-shadow:0 4px 32px rgba(0,0,0,0.7);position:relative;overflow:hidden;}
+#newspaperRU .np-noise{position:absolute;inset:0;pointer-events:none;z-index:1;opacity:0.4;mix-blend-mode:multiply;}
+#newspaperRU .np-header{background:#8a1010;padding:6px 20px 4px;text-align:center;position:relative;z-index:2;}
+#newspaperRU .np-header .np-motto{font-family:'Share Tech Mono',monospace;font-size:8px;color:#ffdddd;letter-spacing:4px;text-transform:uppercase;border-bottom:1px solid #c84040;padding-bottom:4px;margin-bottom:4px;}
+#newspaperRU .np-nameplate{font-family:'Playfair Display',serif;font-weight:700;font-size:42px;color:#ffffff;line-height:1;margin:2px 0;letter-spacing:3px;text-transform:uppercase;text-shadow:2px 2px 0 #5a0808;}
+#newspaperRU .np-subheader{display:flex;justify-content:space-between;align-items:center;font-family:'Share Tech Mono',monospace;font-size:8px;color:#ffcccc;letter-spacing:2px;padding-top:4px;border-top:1px solid #c84040;}
+#newspaperRU .np-body{padding:12px 20px 20px;position:relative;z-index:2;}
+#newspaperRU .np-banner{text-align:center;border-top:4px solid #8a1010;border-bottom:1px solid #8a1010;padding:10px 0 8px;margin-bottom:12px;}
+#newspaperRU .np-banner .np-kicker{font-family:'Oswald',sans-serif;font-size:10px;letter-spacing:5px;text-transform:uppercase;color:#8a1010;margin-bottom:4px;}
+#newspaperRU .np-banner .np-headline{font-family:'Playfair Display',serif;font-weight:700;font-size:32px;line-height:1.1;color:#100c08;margin-bottom:4px;text-transform:uppercase;letter-spacing:2px;}
+#newspaperRU .np-banner .np-deck{font-family:'Playfair Display',serif;font-style:italic;font-size:13px;color:#3a2010;line-height:1.4;}
+#newspaperRU .np-col-rule{display:grid;gap:0;}
+#newspaperRU .np-col-rule.cols-3{grid-template-columns:1fr 1fr 1fr;}
+#newspaperRU .np-col{padding:10px 14px;border-right:1px solid #c8b890;font-size:11.5px;line-height:1.7;color:#100c08;font-family:'Playfair Display',serif;text-align:justify;}
+#newspaperRU .np-col:last-child{border-right:none;}
+#newspaperRU .np-col-head{font-family:'Oswald',sans-serif;font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:1px;color:#8a1010;margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid #8a1010;}
+#newspaperRU .np-drop{float:left;font-family:'Playfair Display',serif;font-weight:700;font-size:46px;line-height:0.85;margin:4px 6px 0 0;color:#8a1010;}
+#newspaperRU .np-divider{border:none;border-top:1px solid #c8b890;margin:10px 0;}
+#newspaperRU .np-caption{font-family:'Share Tech Mono',monospace;font-size:9px;color:#5a4e38;letter-spacing:1px;text-align:center;font-style:italic;margin:6px 0 10px;padding:4px;border-top:1px solid #c8b890;border-bottom:1px solid #c8b890;}
+#newspaperRU .np-sidebar{background:#e0d8c0;padding:10px 12px;border:1px solid #c8b890;margin-top:10px;border-left:4px solid #8a1010;}
+#newspaperRU .np-sidebar-title{font-family:'Oswald',sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#8a1010;margin-bottom:6px;border-bottom:1px solid #c8b890;padding-bottom:4px;}
+#newspaperRU .np-sidebar p{font-size:10.5px;line-height:1.6;color:#2a1808;font-family:'Playfair Display',serif;}
+#newspaperRU .np-footer{background:#8a1010;padding:6px 20px;display:flex;justify-content:space-between;align-items:center;position:relative;z-index:2;}
+#newspaperRU .np-footer span{font-family:'Share Tech Mono',monospace;font-size:8px;color:#ffcccc;letter-spacing:2px;}
+.news-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:40px;color:var(--gold);font-size:10px;letter-spacing:3px;}
+.news-spinner{width:30px;height:30px;border:2px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:1px}
+@media(max-width:680px){.sidebar{width:140px}.intel{display:none}.drole{display:none}}
+@media(max-width:460px){.sidebar{display:none}}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div class="status-dot"></div>
+  <div class="hdr-left">
+    <div class="hdr-sub">Simulação Model UN — Gabinete de Guerra</div>
+    <div class="hdr-title">Operação Barbarossa</div>
+  </div>
+  <div class="badge">RESERVADO</div>
+  <div class="hdr-date" id="hdrDate">22 JUN 1941 · 03:15h</div>
+</div>
+<div class="app">
+  <div class="sidebar">
+    <div class="ptitle">Delegados</div>
+    <div class="dlist">
+      <div class="faction-divider">— Eixo —</div>
+      <button class="dbtn active" data-id="hitler" onclick="selDel(this)"><div class="dflag">🇩🇪</div><div class="dname">Adolf Hitler</div><div class="drole">Führer · OKW</div></button>
+      <button class="dbtn" data-id="brauchitsch" onclick="selDel(this)"><div class="dflag">🎖️</div><div class="dname">Von Brauchitsch</div><div class="drole">C-in-C Exército</div></button>
+      <button class="dbtn" data-id="halder" onclick="selDel(this)"><div class="dflag">📋</div><div class="dname">Franz Halder</div><div class="drole">Chefe Estado-Maior</div></button>
+      <button class="dbtn" data-id="bock" onclick="selDel(this)"><div class="dflag">⚔️</div><div class="dname">Fedor von Bock</div><div class="drole">Grupo Centro</div></button>
+      <button class="dbtn" data-id="rundstedt" onclick="selDel(this)"><div class="dflag">⚔️</div><div class="dname">Von Rundstedt</div><div class="drole">Grupo Sul</div></button>
+      <button class="dbtn" data-id="leeb" onclick="selDel(this)"><div class="dflag">⚔️</div><div class="dname">Wilhelm von Leeb</div><div class="drole">Grupo Norte</div></button>
+      <button class="dbtn" data-id="guderian" onclick="selDel(this)"><div class="dflag">🛡️</div><div class="dname">Heinz Guderian</div><div class="drole">2ª Gruppe Panzer</div></button>
+      <button class="dbtn" data-id="reichenau" onclick="selDel(this)"><div class="dflag">⚔️</div><div class="dname">Von Reichenau</div><div class="drole">6º Exército · Grupo Sul</div></button>
+      <div class="faction-divider">— URSS —</div>
+      <button class="dbtn soviet" data-id="timoshenko" onclick="selDel(this)"><div class="dflag">🇷🇺</div><div class="dname">Timoshenko</div><div class="drole">Narkom Defesa</div></button>
+      <button class="dbtn soviet" data-id="zhukov" onclick="selDel(this)"><div class="dflag">🇷🇺</div><div class="dname">Gueórgui Jukov</div><div class="drole">Chefe EM URSS</div></button>
+      <button class="dbtn soviet" data-id="stalin" onclick="selDel(this)"><div class="dflag">🇷🇺</div><div class="dname">Josef Stalin</div><div class="drole">Comandante Supremo</div></button>
+      <div class="faction-divider">— Propaganda —</div>
+      <button class="dbtn" data-id="goebbels" onclick="selDel(this)"><div class="dflag">📢</div><div class="dname">Goebbels</div><div class="drole">Min. Propaganda</div></button>
+    </div>
+  </div>
+  <div class="center">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('chat')">💬 Chat</button>
+      <button class="tab" onclick="switchTab('directive')">📜 Diretiva</button>
+      <button class="tab" onclick="switchTab('map')">🗺️ Mapa</button>
+      <button class="tab" onclick="switchTab('newspaper')">📰 Jornal</button>
+    </div>
+    <div class="tabpanel active" id="tab-chat">
+      <div class="chatlog" id="chatLog">
+        <div class="msg system"><div class="mtext">⚡ <strong>BARBAROSSA INICIADA — 03:15h.</strong> 3,8 milhões de soldados do Eixo cruzam a fronteira soviética. Selecione um delegado e inicie o debate estratégico.</div></div>
+        <div class="msg system"><div class="mtext">📌 Use <strong>📜 Diretiva</strong> para redigir ordens oficiais. Use <strong>🗺️ Mapa</strong> para acompanhar o avanço. Use <strong>📰 Jornal</strong> para gerar exemplares históricos.</div></div>
+      </div>
+      <div class="typing" id="typing">Redigindo despacho...</div>
+      <div class="inputrow">
+        <select id="lang"><option value="pt">🇧🇷 PT</option><option value="en">🇺🇸 EN</option><option value="de">🇩🇪 DE</option></select>
+        <input class="msginput" type="text" id="inp" placeholder="Envie uma ordem ou pergunta estratégica..." onkeydown="if(event.key==='Enter')send()"/>
+        <button class="sendbtn" id="sbtn" onclick="send()">ENVIAR</button>
+      </div>
+    </div>
+    <div class="tabpanel" id="tab-directive">
+      <div class="dirform">
+        <div class="msg system" style="display:block"><div class="mtext">📜 Preencha o formulário. A IA irá <strong>(1)</strong> formatar a diretiva oficial, <strong>(2)</strong> analisar probabilidade histórica e <strong>(3)</strong> permitir escolher quem responde. Depois exporte em <strong>PDF</strong>.</div></div>
+        <div class="dfield"><label>Tipo de Diretiva</label>
+          <select id="dirType">
+            <option value="solicitacao">1. Solicitação de Informação</option>
+            <option value="correspondencia">2. Correspondência Entre Personagens</option>
+            <option value="negociacao">3. Negociação / Acordo</option>
+            <option value="espionagem">4. Espionagem / Inteligência</option>
+            <option value="imprensa">6. Comunicado de Imprensa</option>
+            <option value="plano">7. Plano de Batalha</option>
+            <option value="reestruturacao">8. Reestruturação Militar</option>
+            <option value="impostos">9. Administração de Territórios Ocupados</option>
+          </select>
+        </div>
+        <div class="dfield"><label>Remetente</label>
+          <select id="dirFrom">
+            <option value="hitler">Adolf Hitler — Führer / OKW</option>
+            <option value="brauchitsch">Feldmareshal Von Brauchitsch — C-in-C Exército</option>
+            <option value="halder">General Franz Halder — Chefe do Estado-Maior</option>
+            <option value="bock">Feldmareshal Fedor von Bock — Grupo Centro</option>
+            <option value="rundstedt">Feldmareshal Von Rundstedt — Grupo Sul</option>
+            <option value="leeb">Feldmareshal Wilhelm von Leeb — Grupo Norte</option>
+            <option value="guderian">General Heinz Guderian — 2ª Gruppe Panzer</option>
+            <option value="reichenau">Feldmareshal Von Reichenau — 6º Exército</option>
+            <option value="timoshenko">Marechal Timoshenko — Narkom da Defesa URSS</option>
+            <option value="zhukov">General Jukov — Chefe do EM Soviético</option>
+            <option value="stalin">Josef Stalin — Comandante Supremo URSS</option>
+            <option value="goebbels">Joseph Goebbels — Min. Propaganda do Reich</option>
+          </select>
+        </div>
+        <div class="dfield"><label>Destinatário</label><input type="text" id="dirTo" placeholder="Ex: General Guderian, General Kleist..."/></div>
+        <div class="dfield"><label>Assunto / Objetivo</label><input type="text" id="dirSubject" placeholder="Ex: Situação em Smolensk, Avanço sobre Kiev..."/></div>
+        <div class="dfield"><label>Conteúdo Principal</label><textarea id="dirContent" placeholder="Descreva em linguagem simples o que a diretiva deve ordenar, solicitar ou comunicar."></textarea></div>
+        <div class="dfield"><label>Nível de Sigilo</label>
+          <select id="dirClassif"><option value="RESERVADO">RESERVADO</option><option value="SECRETO">SECRETO</option><option value="ULTRASSECRETO">ULTRASSECRETO</option><option value="PÚBLICO">PÚBLICO</option></select>
+        </div>
+        <button class="dirbtn" id="dirBtn" onclick="generateDirective()">⚡ GERAR DIRETIVA + ANÁLISE</button>
+        <button class="dirbtn secondary" onclick="clearForm()">✕ Limpar</button>
+      </div>
+    </div>
+    <div class="tabpanel" id="tab-map">
+      <div class="maptab">
+        <div class="map-canvas-wrap"><div id="mapLeaflet" style="width:100%;height:100%;background:#0d1a0d"></div></div>
+        <div class="map-controls">
+          <button class="map-btn" id="btnPlay" onclick="toggleAnim()">▶ ANIMAR</button>
+          <button class="map-btn" onclick="resetAnim()">⟳ REINICIAR</button>
+          <span style="font-size:10px;color:var(--muted)" id="animLabel">Dia 1 — 22 Jun 1941</span>
+          <div class="map-legend">
+            <div class="leg-item"><div class="leg-dot" style="background:#4a7adc"></div><span>Wehrmacht</span></div>
+            <div class="leg-item"><div class="leg-dot" style="background:#c84a4a"></div><span>Exército Vermelho</span></div>
+            <div class="leg-item"><div class="leg-dot" style="background:#c8a84a"></div><span>Cidade</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="tabpanel" id="tab-newspaper">
+      <div class="newspaper-panel">
+        <div class="news-controls">
+          <div class="news-row">
+            <label>Edição</label>
+            <select id="newsEdition">
+              <option value="de">🇩🇪 Völkischer Beobachter (Alemão)</option>
+              <option value="ru">🇷🇺 Правда — Pravda (Soviético)</option>
+            </select>
+            <label>Dia</label>
+            <select id="newsDay">
+              <option value="0">Dia 1 — 22 Jun 1941 (Invasão)</option>
+              <option value="2">Dia 7 — 28 Jun 1941 (Minsk)</option>
+              <option value="4">Dia 30 — 22 Jul 1941 (Smolensk)</option>
+              <option value="5">Dia 54 — 14 Ago 1941 (Leningrado)</option>
+              <option value="6">Dia 82 — 12 Set 1941 (Kiev)</option>
+              <option value="7">Dia 100 — 30 Set 1941 (Tufão)</option>
+              <option value="11">Dia 175 — 15 Dez 1941 (Contraataque)</option>
+              <option value="12">Dia 192 — 31 Dez 1941 (Balanço Final)</option>
+            </select>
+          </div>
+          <div class="news-row">
+            <label>Enfoque Especial (opcional)</label>
+            <textarea id="newsContext" placeholder="Ex: Reforce o papel da Luftwaffe, mencione a moral das tropas..."></textarea>
+          </div>
+          <div class="news-row">
+            <button class="newsbtn" id="newsGenBtn" onclick="generateNewspaper()">📰 GERAR JORNAL</button>
+            <button class="newsbtn secondary" id="newsPdfBtn" onclick="exportNewspaperPDF()" style="display:none">📄 EXPORTAR PDF</button>
+          </div>
+        </div>
+        <div class="news-preview-wrap" id="newsPreviewWrap">
+          <div class="newspaper-placeholder">
+            <div class="icon">📰</div>
+            <div>Selecione edição e dia, depois clique em GERAR JORNAL</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="intel">
+    <div class="ptitle">Intel</div>
+    <div class="intel-inner">
+      <div class="icard"><h3>Calendário</h3>
+        <div class="dayrow">
+          <button class="daybtn" id="btnPrev" onclick="changeDay(-1)" disabled>◀</button>
+          <div><div class="daylabel" id="dayLabel">Dia 1</div><div class="daydate" id="dayDate">22 Jun 1941</div></div>
+          <button class="daybtn" id="btnNext" onclick="changeDay(1)">▶</button>
+        </div>
+      </div>
+      <div class="icard"><h3>Situação</h3><div id="situationRows"></div></div>
+      <div class="icard"><h3>Avanço</h3><div id="forcesRows"></div></div>
+      <div class="icard"><h3>Ações Rápidas</h3><div id="quickActions"></div></div>
+    </div>
+  </div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
